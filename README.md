@@ -1,5 +1,9 @@
 # Scraper fatalmodel.com — listagem + WhatsApp por cidade
 
+**Objetivo do projeto:** raspar (scraping) os números de WhatsApp das acompanhantes anunciadas no fatalmodel.com, cidade por cidade. O resultado é um CSV com nome, link do perfil e link `api.whatsapp.com/send` de cada anúncio.
+
+> Os números são dados pessoais. Os CSVs gerados ficam fora do repositório (`.gitignore`). Uso e armazenamento devem respeitar a LGPD e os termos do site.
+
 Experimento de 26/08/2026: extrair a listagem completa de anúncios de uma cidade no fatalmodel.com (fotos + link do perfil) e, a partir de cada perfil, o número de WhatsApp já formatado como link `api.whatsapp.com/send`.
 
 ## O que foi descoberto
