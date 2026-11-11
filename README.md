@@ -13,22 +13,50 @@ Experimento de 26/08/2026: extrair a listagem completa de anúncios de uma cidad
 - Cada card de anúncio tem um `<div id="listingCard<ad_id>">` com o link do perfil (`href="https://fatalmodel.com/acompanhante/<id>/<slug>"`) e a foto — mas o atributo da foto varia por tipo de card: cards "top/destaque" usam `data-src="'<url>'"` (Vue bind, domínio `files.fatalmodel.com`), cards normais usam `src="<url>"` direto (domínio `fatalmodel.com/cdn-cgi/image/...`).
 - O número de WhatsApp de cada perfil **não aparece em texto puro** no HTML — vem embutido no payload serializado `<script data-nuxt-data>` (formato Nuxt "devalue": um array plano onde cada objeto referencia outros elementos por índice numérico). O campo `phone_number_whatsapp` aponta pro índice do array que contém o número (sem o "55" do país). O botão "Chamar no WhatsApp" da página monta o link client-side a partir desse dado — não existe uma chamada de API separada pra revelar o número.
 
-## Scripts
+## Uso (script unificado)
 
-- [`./fatalmodel-listagem.py`](./fatalmodel-listagem.py) — percorre `?page=N` de uma cidade e extrai `ad_id`, `url` do perfil e `foto` de cada anúncio.
-  ```bash
-  python3 fatalmodel-listagem.py maringa-pr --saida maringa-completo.csv
-  ```
-- [`./fatalmodel-whatsapp.py`](./fatalmodel-whatsapp.py) — recebe o CSV gerado acima, visita cada perfil e adiciona `nome`, `whatsapp_numero` e `whatsapp_link` (mensagem padrão + link curto `fatal.fm/<ad_id>`).
-  ```bash
-  python3 fatalmodel-whatsapp.py maringa-completo.csv --saida maringa-completo.csv --espera 1.5
-  ```
+[`./fatalmodel.py`](./fatalmodel.py) faz tudo em um passo: recebe a URL da cidade, lista todos os anúncios e visita cada perfil pra extrair nome e WhatsApp.
 
-## Arquivos gerados
+```bash
+python3 fatalmodel.py https://fatalmodel.com/acompanhantes-florianopolis-sc
+python3 fatalmodel.py florianopolis-sc --limite 5     # teste rápido (5 primeiros)
+```
 
-- `maringa-completo.csv` — 144 anúncios de Maringá-PR (ad_id, url, foto), sem WhatsApp ainda.
-- `maringa-teste5-whatsapp.csv` — amostra de 5 perfis com WhatsApp já extraído, validando o script acima antes de rodar nos 144.
+- Aceita a **URL completa** ou só o **slug** (`cidade-uf`, igual aparece na URL do site depois de `acompanhantes-`).
+- Opções: `--limite N` (processa só os N primeiros), `--espera S` (segundos entre requisições, padrão **3.0**), `--pasta` (base de saída, padrão `saidas`).
+- Só Python 3.10+, sem dependências externas.
+
+Saída em `saidas/<slug>/`:
+
+| Arquivo | Conteúdo |
+|---|---|
+| `listagem.json` | `ad_id`, `url`, `foto` de cada anúncio |
+| `listagem.csv` | o mesmo, em CSV |
+| `whatsapp.csv` | tudo acima + `nome`, `whatsapp_numero`, `whatsapp_link` (mensagem padrão + link curto `fatal.fm/<ad_id>`) |
+
+Perfil que falha ou não tem número sai com os campos vazios e o script segue. No fim mostra quantos vieram com WhatsApp. O `whatsapp.csv` só é gravado ao final da execução.
+
+## O que melhoramos (11/11/2026)
+
+- **Um script só**: `fatalmodel.py` substitui o fluxo em duas etapas (`fatalmodel-listagem.py` + `fatalmodel-whatsapp.py`).
+- **Entrada por URL**: não precisa mais extrair o slug na mão.
+- **Saída organizada**: uma pasta por cidade, com listagem em JSON/CSV e o CSV final de WhatsApp, sem risco de sobrescrever arquivo de outra cidade.
+- **Fim da incompatibilidade de formato**: antes a listagem gravava JSON (mesmo com nome `.csv` no exemplo do README) e o script de WhatsApp lia CSV.
+- **Delay maior**: padrão de 3 s entre requisições (antes 1 s na listagem e 1,5 s nos perfis), mais seguro contra rate-limit/bloqueio. Florianópolis (384 anúncios) leva ~20 min.
+- **`.gitignore`** passou a cobrir `saidas/` e `*.json`, além de `*.csv`.
+
+## Scripts antigos (ainda na pasta)
+
+- [`./fatalmodel-listagem.py`](./fatalmodel-listagem.py) — só a listagem (grava JSON).
+- [`./fatalmodel-whatsapp.py`](./fatalmodel-whatsapp.py) — recebe CSV com `ad_id,url` e adiciona nome/WhatsApp.
+
+## Arquivos gerados em testes anteriores
+
+- `maringa-completo.csv` — 144 anúncios de Maringá-PR (ad_id, url, foto), sem WhatsApp.
+- `maringa-teste5-whatsapp.csv` — amostra de 5 perfis de Maringá com WhatsApp.
+- `florianopolis.json` / `florianopolis.csv` / `floripa-teste*.csv` — listagem de Florianópolis (384 anúncios) e testes de 5 perfis.
 
 ## Status
 
-Testado e validado em 5 perfis (100% de acerto). Ainda não rodado nos 144 completos — pendente decisão do Bruno se/quando rodar em escala (rate-limit de ~1.5s por request, ~144 requests ≈ 4min).
+- Validado em 5 perfis de Maringá e 5 de Florianópolis (100% de acerto) e com o script unificado em 2 perfis de Florianópolis.
+- Ainda não rodado em escala (Maringá completa, Florianópolis completa) — pendente decisão do Bruno.
